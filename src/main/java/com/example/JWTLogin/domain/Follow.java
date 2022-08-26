@@ -7,6 +7,9 @@ import lombok.Setter;
 
 import javax.persistence.*;
 
+/***
+ * 맞팔 f4f 의 확인 값이  필요하다 .
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,11 +28,13 @@ public class Follow {
     @ManyToOne
     private Member toMember;
 
+    private boolean f4f;
 
     //fromMember와 toMember는 ManyToOne 관계로 Member와 N : 1 이다.
     @Builder
-    public Follow(Member fromMember, Member toMember){
+    public Follow(Member fromMember, Member toMember, boolean f4f){
         this.fromMember = fromMember;
         this.toMember = toMember;
+        this.f4f = f4f;
     }
 }

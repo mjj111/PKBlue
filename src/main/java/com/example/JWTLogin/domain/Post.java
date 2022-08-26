@@ -44,18 +44,22 @@ public class Post {
 
     private LocalDateTime createDate;
 
+    @Column(name = "only_friend")
+    private boolean onlyFriend;
+
     @PrePersist
     public void createDate() {
         this.createDate = LocalDateTime.now();
     }
 
     @Builder
-    public Post(String postImgUrl, String tag, String text, Member member, long likesCount) {
+    public Post(String postImgUrl, String tag, String text, Member member, long likesCount,boolean onlyFriend) {
         this.postImgUrl = postImgUrl;
         this.tag = tag;
         this.text = text;
         this.member = member;
         this.likesCount = likesCount;
+        this.onlyFriend = onlyFriend;
     }
 
     public void update(String tag, String text) {

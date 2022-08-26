@@ -62,7 +62,7 @@ public class FollowServiceTest {
     @Test
     public void follow_성공() throws Exception {
         //when
-        Follow follow = new Follow(from_member, to_member);
+        Follow follow = new Follow(from_member, to_member,false);
         followRepository.save(follow);
 
         //then

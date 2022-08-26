@@ -13,4 +13,5 @@ public class PostUploadDto {
 
     private String text;
     private String tag;
+    private boolean onlyFriend;
 }

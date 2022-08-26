@@ -1,5 +1,6 @@
 package com.example.JWTLogin.service;
 
+import com.example.JWTLogin.domain.Follow;
 import com.example.JWTLogin.handler.CustomApiException;
 import com.example.JWTLogin.repository.FollowRepository;
 import com.example.JWTLogin.web.dto.FollowDto;
@@ -24,17 +25,30 @@ public class FollowService {
     @Transactional
     public void follow(long fromMemberId, long toMemberId){
         if(followRepository.findFollowByFromMemberIdAndToMemberId(fromMemberId, toMemberId) != null) throw new CustomApiException("이미 팔로우 하였습니다.");
-        followRepository.follow(fromMemberId, toMemberId);
+
+        // 맞팔
+        else if(followRepository.findFollowByFromMemberIdAndToMemberId(toMemberId, fromMemberId) != null){
+            followRepository.follow(fromMemberId, toMemberId,true);
+            Follow refollow = followRepository.findFollowByFromMemberIdAndToMemberId(fromMemberId, toMemberId);
+            refollow.setF4f(true);
+        }
+        // 짝팔
+        else {
+            followRepository.follow(fromMemberId, toMemberId, false);
+        }
     }
 
     //언팔로우
     @Transactional
-    public void unFollow(long fromUserId, long toUserId) {
-        followRepository.unFollow(fromUserId, toUserId);
+    public void unFollow(long fromMemberId, long toMemberId) {
+        if(followRepository.findFollowByFromMemberIdAndToMemberId(toMemberId, fromMemberId) != null){
+            Follow refollow = followRepository.findFollowByFromMemberIdAndToMemberId(toMemberId, fromMemberId);
+            refollow.setF4f(false);
+        }
+        followRepository.unFollow(fromMemberId, toMemberId);
     }
 
     // 팔로워 조회
-    @Transactional
     public List<FollowDto> getFollower(long profileId, long loginId) {
         StringBuilder sb = new StringBuilder();
         sb.append("SELECT m.id, m.nickname, m.profile_img_url, ");

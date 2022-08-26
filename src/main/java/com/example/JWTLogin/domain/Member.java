@@ -1,5 +1,6 @@
 package com.example.JWTLogin.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -50,9 +51,9 @@ public class Member implements UserDetails {
     private List<String> roles = new ArrayList<>();
 
     // 게시글 맵핑
-    //   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    //    @JsonIgnoreProperties({"user"})
-    //    private List<Post> postList;
+    @OneToMany(mappedBy = "member", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"member"})
+    private List<Post> postList;
 
 
     // 비밀번호 수정

@@ -13,11 +13,15 @@ import java.math.BigInteger;
 public class PostPreviewDto {
     private long id;
     private String postImgUrl;
+    private String text;
     private long likesCount;
+    //private long commentCount;
 
-    public PostPreviewDto(BigInteger id, String postImgUrl, BigInteger likesCount) {
+    public PostPreviewDto(BigInteger id, String postImgUrl,String text, BigInteger likesCount) {
         this.id = id.longValue();
         this.postImgUrl = postImgUrl;
+        this.text = text;
         this.likesCount = likesCount.longValue();
+        //this.commentCount = commentCount;
     }
 }

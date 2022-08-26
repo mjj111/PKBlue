@@ -2,10 +2,7 @@ package com.example.JWTLogin.service;
 
 import com.example.JWTLogin.domain.Member;
 import com.example.JWTLogin.domain.Post;
-import com.example.JWTLogin.repository.CommentRepository;
-import com.example.JWTLogin.repository.LikesRepository;
-import com.example.JWTLogin.repository.MemberRepository;
-import com.example.JWTLogin.repository.PostRepository;
+import com.example.JWTLogin.repository.*;
 import com.example.JWTLogin.web.dto.post.*;
 import lombok.RequiredArgsConstructor;
 import org.qlrm.mapper.JpaResultMapper;
@@ -35,11 +32,14 @@ public class PostService {
     private final PostRepository postRepository;
     private final LikesRepository likesRepository;
     private final CommentRepository commentRepository;
+    private final ScrapRepository scrapRepository;
     private final EntityManager em;
 
     @Value("${post.path}")
     private String uploadUrl;
 
+
+    //포스트 등록
     @Transactional
     public void save(PostUploadDto postUploadDto, MultipartFile multipartFile, String email) {
         Member loginMember = memberRepository.findByEmail(email);
@@ -59,9 +59,11 @@ public class PostService {
                 .text(postUploadDto.getText())
                 .member(loginMember)
                 .likesCount(0)
+                .onlyFriend(postUploadDto.isOnlyFriend())
                 .build());
     }
 
+    // 포스트 미리보기
     @Transactional
     public PostInfoDto getPostInfoDto(long postId, String email) {
         Member loginMember = memberRepository.findByEmail(email);
@@ -92,6 +94,7 @@ public class PostService {
         return postInfoDto;
     }
 
+    // 포스트 상세 조회
     @Transactional
     public PostDto getPostDto(long postId) {
         //예외 처리 필요 -> post의 작성자가 아닌 사람이 해당 페이지에 접근하여 수정하려고 한다면??
@@ -107,18 +110,23 @@ public class PostService {
         return postDto;
     }
 
+    //포스트 업데이트
     @Transactional
     public void update(PostUpdateDto postUpdateDto) {
         Post post = postRepository.findById(postUpdateDto.getId()).get();
         post.update(postUpdateDto.getTag(), postUpdateDto.getText());
     }
 
+    // 포스트 지우기
     @Transactional
     public void delete(long postId) {
         Post post = postRepository.findById(postId).get();
 
         //관련된 likes의 정보 먼저 삭제해 준다.
         likesRepository.deleteLikesByPost(post);
+
+        //관련된 scrap의 정보 먼저 삭제해 준다.
+        scrapRepository.deleteScrapByPost(post);
 
         //관련된 Comment의 정보 먼저 삭제해 준다.
         commentRepository.deleteCommentsByPost(post);
@@ -130,8 +138,9 @@ public class PostService {
         postRepository.deleteById(postId);
     }
 
+    // 메인스토리 (짝팔로우) 목록 조회
     @Transactional
-    public Page<Post> getPost(String email, Pageable pageable) {
+    public Page<Post> getMainPost(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         Page<Post> postList = postRepository.mainStory(loginMemeber.getId(), pageable);
 
@@ -145,6 +154,23 @@ public class PostService {
         return postList;
     }
 
+    // 서브스토리 포스트 목록 조회
+    @Transactional
+    public Page<Post> getSubPost(String email, Pageable pageable) {
+        Member loginMemeber = memberRepository.findByEmail(email);
+        Page<Post> postList = postRepository.subStory(loginMemeber.getId(), pageable);
+
+        postList.forEach(post -> {
+            post.updateLikesCount(post.getLikesList().size());
+            post.getLikesList().forEach(likes -> {
+                if(likes.getMember().getId() == loginMemeber.getId()) post.updateLikesState(true);
+            });
+        });
+
+        return postList;
+    }
+
+    // 태그 검색 목록 조회
     @Transactional
     public Page<Post> getTagPost(String tag, String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
@@ -159,11 +185,12 @@ public class PostService {
         return postList;
     }
 
+    // 좋아요한 포스트 목록 조회
     @Transactional
     public Page<PostPreviewDto> getLikesPost(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         StringBuffer sb = new StringBuffer();
-        sb.append("SELECT p.id, p.post_img_url, COUNT(p.id) as likesCount ");
+        sb.append("SELECT p.id, p.post_img_url,p.text, COUNT(p.id) as likesCount ");
         sb.append("FROM likes l, post p ");
         sb.append("WHERE l.post_id = p.id ");
         sb.append("AND p.id IN (SELECT p.id FROM likes l, post p WHERE l.member_id = ? AND p.id = l.post_id) ");
@@ -187,24 +214,56 @@ public class PostService {
         return postLikesPage;
     }
 
+
+    // 스크랩한 포스트 목록 조회
     @Transactional
-    public List<PostPreviewDto> getPopularPost() {
+    public Page<PostPreviewDto> getScrapPost(String email, Pageable pageable) {
+        Member loginMemeber = memberRepository.findByEmail(email);
         StringBuffer sb = new StringBuffer();
-        sb.append("SELECT p.id, p.post_img_url, COUNT(p.id) as likesCount ");
-        sb.append("FROM likes l, post p ");
-        sb.append("WHERE l.post_id = p.id ");
-        sb.append("AND p.id IN (SELECT p.id FROM likes l, post p WHERE p.id = l.post_id) ");
+        sb.append("SELECT p.id, p.post_img_url, p.text, COUNT(p.id) as likesCount ");
+        sb.append("FROM scrap s, post p ");
+        sb.append("WHERE s.post_id = p.id ");
+        sb.append("AND p.id IN (SELECT p.id FROM scrap s, post p WHERE s.member_id = ? AND p.id = l.post_id) ");
         sb.append("GROUP BY p.id ");
-        sb.append("ORDER BY likesCount DESC, p.id ");
-        sb.append("LIMIT 12 ");
+        sb.append("ORDER BY p.id");
 
         // 쿼리 완성
-        Query query = em.createNativeQuery(sb.toString());
+        Query query = em.createNativeQuery(sb.toString())
+                .setParameter(1, loginMemeber.getId());
 
         //JPA 쿼리 매핑 - DTO에 매핑
         JpaResultMapper result = new JpaResultMapper();
-        List<PostPreviewDto> postPreviewDtoList = result.list(query, PostPreviewDto.class);
+        List<PostPreviewDto> postLikesList = result.list(query, PostPreviewDto.class);
 
-        return postPreviewDtoList;
+        int start = (int) pageable.getOffset();
+        int end = (start + pageable.getPageSize()) > postLikesList.size() ? postLikesList.size() : (start + pageable.getPageSize());
+
+        if(start > postLikesList.size()) return new PageImpl<PostPreviewDto>(postLikesList.subList(0, 0), pageable, 0);
+
+        Page<PostPreviewDto> postLikesPage = new PageImpl<>(postLikesList.subList(start, end), pageable, postLikesList.size());
+        return postLikesPage;
     }
+
+
+//    // 인기 게시글
+//    @Transactional
+//    public List<PostPreviewDto> getPopularPost() {
+//        StringBuffer sb = new StringBuffer();
+//        sb.append("SELECT p.id, p.post_img_url, COUNT(p.id) as likesCount ");
+//        sb.append("FROM likes l, post p ");
+//        sb.append("WHERE l.post_id = p.id ");
+//        sb.append("AND p.id IN (SELECT p.id FROM likes l, post p WHERE p.id = l.post_id) ");
+//        sb.append("GROUP BY p.id ");
+//        sb.append("ORDER BY likesCount DESC, p.id ");
+//        sb.append("LIMIT 12 ");
+//
+//        // 쿼리 완성
+//        Query query = em.createNativeQuery(sb.toString());
+//
+//        //JPA 쿼리 매핑 - DTO에 매핑
+//        JpaResultMapper result = new JpaResultMapper();
+//        List<PostPreviewDto> postPreviewDtoList = result.list(query, PostPreviewDto.class);
+//
+//        return postPreviewDtoList;
+//    }
 }
