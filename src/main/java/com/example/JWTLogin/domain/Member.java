@@ -57,20 +57,18 @@ public class Member implements UserDetails {
 
 
     // 비밀번호 수정
-    public void updatePassword(String password){
+    public void changePSW(String password) {
         this.password = password;
     }
 
     // 회원정보 수정
-    public void update(String password, String nickname, String introduce, String profileImgUrl){
-        this.password = password;
+    public void updateProfile( String nickname, String introduce){
         this.nickname = nickname;
         this.introduce = introduce;
-        this.profileImgUrl = profileImgUrl;
-
     }
 
-    public void updateProfileImgUrl(String profileImgUrl) {
+    //회원 프로필 사진 수정
+    public void updateProfileImgUrl(String profileImgUrl){
         this.profileImgUrl = profileImgUrl;
     }
 
@@ -83,7 +81,7 @@ public class Member implements UserDetails {
 
     @Override
     public String getUsername() {
-        return nickname;
+        return email;
     }
 
     @Override

@@ -19,7 +19,7 @@ public class FollowApiController {
     private final MemberService memberService;
 
     // 팔로우
-    @PostMapping("/follow/{toMemberNickname}")
+    @PostMapping("/follow/{toMemberId}")
     public ResponseEntity<?> followMember(@PathVariable long toMemberId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email =  authentication.getName();
@@ -29,12 +29,12 @@ public class FollowApiController {
     }
 
     // 언팔로우
-    @DeleteMapping("/follow/{toUserId}")
+    @DeleteMapping("/follow/{toMemberId}")
     public ResponseEntity<?> unFollowMember(@PathVariable long toMemberId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email =  authentication.getName();
         Member fromMember = memberService.findByEmail(email); // 현재 본인
         followService.unFollow(fromMember.getId(), toMemberId);
-        return new ResponseEntity<>("팔로우 취소 성공", HttpStatus.OK);
+        return new ResponseEntity<>("팔로우 취소 ", HttpStatus.OK);
     }
 }

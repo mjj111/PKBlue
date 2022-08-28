@@ -23,7 +23,7 @@ public class MemberApiController {
 
 
     // 다른 사용자 팔로워 조회
-    @GetMapping("/user/{profileId}/follower")
+    @GetMapping("/memeber/{profileId}/follower")
     public ResponseEntity<?> getFollower(@PathVariable long profileId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email =  authentication.getName();
@@ -32,7 +32,7 @@ public class MemberApiController {
     }
 
     //다른 사용자 팔로잉 조회
-    @GetMapping("/user/{profileId}/following")
+    @GetMapping("/member/{profileId}/following")
     public ResponseEntity<?> getFollowing(@PathVariable long profileId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email =  authentication.getName();

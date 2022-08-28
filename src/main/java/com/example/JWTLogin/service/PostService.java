@@ -63,7 +63,7 @@ public class PostService {
                 .build());
     }
 
-    // 포스트 미리보기
+    // 포스트 상세보기
     @Transactional
     public PostInfoDto getPostInfoDto(long postId, String email) {
         Member loginMember = memberRepository.findByEmail(email);
@@ -87,12 +87,13 @@ public class PostService {
         //포스트 주인의 정보를 가져온다.
         Member member = memberRepository.findById(post.getMember().getId()).get();
 
-        postInfoDto.setPostUploader(member);
+        postInfoDto.setUploaderNickname(member.getNickname());
         if(loginMember.getId() == post.getMember().getId()) postInfoDto.setUploader(true);
         else postInfoDto.setUploader(false);
 
         return postInfoDto;
     }
+
 
     // 포스트 상세 조회
     @Transactional

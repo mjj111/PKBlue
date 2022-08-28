@@ -9,7 +9,6 @@ import com.example.JWTLogin.web.dto.member.MemberSignupDto;
 import com.example.JWTLogin.web.dto.member.MemberUpdateDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,20 +29,13 @@ public class MemberService {
     public final PasswordEncoder passwordEncoder;
     public final FollowRepository followRepository;
 
-    /** 회원가입 (이메일 , 닉네임 중복 확인)
-     *  최초 회원 가입시, 자기소개와 프로필 사진은 없다 -> 프로필 수정을 통해 기입
-     */
+
+    // 회원가입
     @Transactional
     public void save(MemberSignupDto signupDto){
-        if(memberRepository.findByEmail(signupDto.getEmail()) != null) {
-            throw new CustomValidationException("이미 존재하는 이메일입니다.");
-        }
 
-        try{
-            memberRepository.findByNickname(signupDto.getNickname());
-        } catch(Exception e){
-            throw new CustomValidationException("이미 존재하는 닉네임입니다.");
-        }
+        duplicateEmailCheck(signupDto.getEmail());
+        duplicateNickname(signupDto.getNickname());
         Member saveMember = Member.builder()
                 .email(signupDto.getEmail())
                 .password(passwordEncoder.encode(signupDto.getPassword()))
@@ -56,16 +48,12 @@ public class MemberService {
     }
 
 
-    /**회원정보 수정 (비밀번호, 닉네임, 자기소개, 프로필사진)
-     * email 값을 통해 Member를 찾아준 뒤,
-     * MemberUpdateDto로 받아들인 정보로 수정한다.
-     */
+    // 프로필 수정
     @Value("${profileImg.path}")
     private String uploadFolder;
-    @Transactional  // 이메일
+    @Transactional
     public void update(MemberUpdateDto memberUpdateDto, MultipartFile multipartFile, String email) {
         Member loginMember = memberRepository.findByEmail(email);
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
         if(!multipartFile.isEmpty()) { //파일이 업로드 되었는지 확인
             String imageFileName = loginMember.getId() + "_" + multipartFile.getOriginalFilename();
@@ -82,40 +70,35 @@ public class MemberService {
             loginMember.updateProfileImgUrl(imageFileName);
         }
 
-        loginMember.update(
-                encoder.encode(memberUpdateDto.getPassword()),
+        loginMember.updateProfile(
                 memberUpdateDto.getNickname(),
-                memberUpdateDto.getIntroduce(),
-                memberUpdateDto.getProfileImgUrl() // 필요없음
+                memberUpdateDto.getIntroduce()
         );
-
     }
 
     // 회원 프로필 조회
-    @Transactional
-    public MemberProfileDto getMemberProfileDto(long profileId, String email) {
+    public MemberProfileDto getMemberProfileDto(long toId, String loginMemberEmail) {
         MemberProfileDto memberProfileDto = new MemberProfileDto();
 
-        Member nowMember = memberRepository.findById(profileId).orElseThrow(() -> { return new CustomValidationException("찾을 수 없는 user입니다.");});
-        memberProfileDto.setMember(nowMember);
-        //게시물 수
-        //MemberProfileDto.setPostCount(nowMember.getPostList().size());
+        Member toMember = memberRepository.findById(toId).orElseThrow(() -> { return new CustomValidationException("찾을 수 없는 유저입니다.");});
+        memberProfileDto.setProfileImgUrl(toMember.getProfileImgUrl());
+        memberProfileDto.setNickname(toMember.getNickname());
+        memberProfileDto.setIntroduce(toMember.getIntroduce());
 
         // loginEmail 활용하여 currentId가 로그인된 사용자 인지 확인
-        Member loginMember = findByEmail(email);
-        memberProfileDto.setLoginMember(loginMember.getId() == nowMember.getId());
+        Member loginMember = findByEmail(loginMemberEmail);
+        memberProfileDto.setLoginMember(loginMember.getId() == toMember.getId());
 
-        // 현재 loginEmail를 가진 member가 보려는 nowMember를 구독 했는지 확인
-        memberProfileDto.setFollow(followRepository.findFollowByFromMemberIdAndToMemberId(loginMember.getId(), nowMember.getId()) != null);
+        // 현재 loginMember가 toMember를 구독 했는지 확인
+        memberProfileDto.setFollow(followRepository.findFollowByFromMemberIdAndToMemberId(loginMember.getId(), toMember.getId()) != null);
 
-        //nowMember의 팔로워, 팔로잉 수를 확인한다.
-        memberProfileDto.setMemberFollowerCount(followRepository.findFollowerCountById(profileId));
-        memberProfileDto.setMemberFollowingCount(followRepository.findFollowingCountById(profileId));
+        //게시물 수
+        memberProfileDto.setPostCount(toMember.getPostList().size());
 
-        //좋아요 수 확인
-        //nowMember.getPostList().forEach(post -> {
-        //    post.updateLikesCount(post.getLikesList().size());
-        //});
+
+        //toMember의 팔로워, 팔로잉 수를 확인한다.
+        memberProfileDto.setMemberFollowerCount(followRepository.findFollowerCountById(toMember.getId()));
+        memberProfileDto.setMemberFollowingCount(followRepository.findFollowingCountById(toMember.getId()));
 
         return memberProfileDto;
     }
@@ -123,5 +106,31 @@ public class MemberService {
     public Member findByEmail(String email){
         Member findMember = memberRepository.findByEmail(email);
         return findMember;
+    }
+
+    // 이메일 중복 체크
+    public boolean duplicateEmailCheck(String email){
+        if(memberRepository.findByEmail(email) != null){
+            throw new CustomValidationException("이미 사용하고 있는 아이디입니다.");
+        }
+        return true;
+    }
+    // 닉네임 중복체크
+    public boolean duplicateNickname(String nickname){
+        try{
+            memberRepository.findByNickname(nickname);
+        } catch(Exception e){
+            throw new CustomValidationException("이미 존재하는 닉네임입니다.");
+        }
+        return true;
+    }
+
+
+    // 비밀번호 변경
+    @Transactional
+    public void changePassword(String email, String password){
+        Member loginMember = memberRepository.findByEmail(email);
+        String changePSW = passwordEncoder.encode(password);
+        loginMember.changePSW(changePSW);
     }
 }
