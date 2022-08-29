@@ -1,8 +1,9 @@
 package com.example.JWTLogin.web.dto.post;
 
-
+import com.example.JWTLogin.domain.Comment;
 import lombok.*;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,9 +13,8 @@ import java.util.List;
 @Setter
 @Getter
 @Data
-public class PostDto {
-
-    private long postId;
+public class PostDetailDto {
+    private long id;
     private long loaderId; // 생성자 ID
     private String loaderProfileImg; // 생성자 프로필 이미지
     private String loaderNickname; // 생성자 닉네임
@@ -27,4 +27,5 @@ public class PostDto {
     private LocalDateTime createDate; // 생성일
     private boolean likesState; // 현재 좋아요 눌렀는가
     private boolean onlyFriend; // 맞팔,짝팔
+    private List<Comment> commentList; // 댓글 리스트
 }

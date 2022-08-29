@@ -1,4 +1,4 @@
-package com.example.JWTLogin.web.api;
+package com.example.JWTLogin.web.apiController;
 
 import com.example.JWTLogin.domain.Member;
 import com.example.JWTLogin.service.FollowService;

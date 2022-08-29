@@ -12,7 +12,6 @@ import javax.persistence.*;
 @NoArgsConstructor
 @Entity
 public class MailCode {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
@@ -22,6 +21,5 @@ public class MailCode {
     private String email;
 
     private boolean state;
-
 
 }

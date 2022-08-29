@@ -1,7 +1,11 @@
 package com.example.JWTLogin.service;
 
+import com.example.JWTLogin.config.FileUtilities;
 import com.example.JWTLogin.domain.Member;
 import com.example.JWTLogin.domain.Post;
+import com.example.JWTLogin.domain.PostFile;
+import com.example.JWTLogin.handler.CustomApiException;
+import com.example.JWTLogin.handler.CustomValidationException;
 import com.example.JWTLogin.repository.*;
 import com.example.JWTLogin.web.dto.post.*;
 import lombok.RequiredArgsConstructor;
@@ -34,42 +38,52 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final ScrapRepository scrapRepository;
     private final EntityManager em;
-
-    @Value("${post.path}")
-    private String uploadUrl;
+    private final PostFileRepository postFileRepository;
 
 
     //포스트 등록
     @Transactional
-    public void save(PostUploadDto postUploadDto, MultipartFile multipartFile, String email) {
+    public long save(PostUploadDto postUploadDto, List<MultipartFile> multipartFiles, String email) {
         Member loginMember = memberRepository.findByEmail(email);
-        UUID uuid = UUID.randomUUID();
-        String imgFileName = uuid + "_" + multipartFile.getOriginalFilename();
+        Post beSavedPost = new Post(postUploadDto.getTag(),
+                                postUploadDto.getText(),
+                                loginMember,
+                                0,
+                                0,
+                                postUploadDto.isOnlyFriend());
+        Post haveSavedPost = postRepository.save(beSavedPost);
+        try{
+            List<PostFile> postFileList = FileUtilities.parseFileInfo(multipartFiles, haveSavedPost);
+            // 파일이 존재할 경우
+            if (!postFileList.isEmpty()) {
+                postFileList.forEach(postFile -> postFileRepository.save(postFile));
+                haveSavedPost.setPostFileList(postFileList);
+            }
 
-        Path imageFilePath = Paths.get(uploadUrl + imgFileName);
-        try {
-            Files.write(imageFilePath, multipartFile.getBytes());
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception e){
+            throw new CustomApiException("파일 업로드 실패");
         }
 
-        postRepository.save(Post.builder()
-                .postImgUrl(imgFileName)
-                .tag(postUploadDto.getTag())
-                .text(postUploadDto.getText())
-                .member(loginMember)
-                .likesCount(0)
-                .onlyFriend(postUploadDto.isOnlyFriend())
-                .build());
+        return haveSavedPost.getId();
     }
-
-    // 포스트 상세보기
+/**
+ *
+ *
+ * 여기까지 함
+ *
+ */
+    /
+    // 포스트 상세 보기
     @Transactional
-    public PostInfoDto getPostInfoDto(long postId, String email) {
+    public PostDto getPostDto(long postId, String email) {
         Member loginMember = memberRepository.findByEmail(email);
 
-        PostInfoDto postInfoDto = new PostInfoDto();
-        postInfoDto.setId(postId);
+        PostDto postDto = new PostDto();
+        postDto.setLoaderId(loginMember.getId());
+        postDto.setLoaderNickname(loginMember.getNickname());
+        postDto.setLoaderProfileImg(loginMember.getProfileImgUrl()); // 수정 바람
+
+
 
         Post post = postRepository.findById(postId).get();
         postInfoDto.setTag(post.getTag());
@@ -78,11 +92,11 @@ public class PostService {
         postInfoDto.setCreatedate(post.getCreateDate());
 
         //포스트 정보 요청시 포스트 엔티티의 likesCount, likesState, CommentList를 설정해준다.
-        postInfoDto.setLikesCount(post.getLikesList().size());
+        postDto.setLikesCount(post.getLikesList().size());
         post.getLikesList().forEach(likes -> {
-            if(likes.getMember().getId() == loginMember.getId()) postInfoDto.setLikeState(true);
+            if(likes.getMember().getId() == loginMember.getId()) postDto.setLikesState(true);
         });
-        postInfoDto.setCommentList(post.getCommentList());
+//        postDto.setCommentCount(post.getCommentList());
 
         //포스트 주인의 정보를 가져온다.
         Member member = memberRepository.findById(post.getMember().getId()).get();
@@ -188,7 +202,7 @@ public class PostService {
 
     // 좋아요한 포스트 목록 조회
     @Transactional
-    public Page<PostPreviewDto> getLikesPost(String email, Pageable pageable) {
+    public Page<PostDetailDto> getLikesPost(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         StringBuffer sb = new StringBuffer();
         sb.append("SELECT p.id, p.post_img_url,p.text, COUNT(p.id) as likesCount ");
@@ -204,21 +218,21 @@ public class PostService {
 
         //JPA 쿼리 매핑 - DTO에 매핑
         JpaResultMapper result = new JpaResultMapper();
-        List<PostPreviewDto> postLikesList = result.list(query, PostPreviewDto.class);
+        List<PostDetailDto> postLikesList = result.list(query, PostDetailDto.class);
 
         int start = (int) pageable.getOffset();
         int end = (start + pageable.getPageSize()) > postLikesList.size() ? postLikesList.size() : (start + pageable.getPageSize());
 
-        if(start > postLikesList.size()) return new PageImpl<PostPreviewDto>(postLikesList.subList(0, 0), pageable, 0);
+        if(start > postLikesList.size()) return new PageImpl<PostDetailDto>(postLikesList.subList(0, 0), pageable, 0);
 
-        Page<PostPreviewDto> postLikesPage = new PageImpl<>(postLikesList.subList(start, end), pageable, postLikesList.size());
+        Page<PostDetailDto> postLikesPage = new PageImpl<>(postLikesList.subList(start, end), pageable, postLikesList.size());
         return postLikesPage;
     }
 
 
     // 스크랩한 포스트 목록 조회
     @Transactional
-    public Page<PostPreviewDto> getScrapPost(String email, Pageable pageable) {
+    public Page<PostDetailDto> getScrapPost(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         StringBuffer sb = new StringBuffer();
         sb.append("SELECT p.id, p.post_img_url, p.text, COUNT(p.id) as likesCount ");
@@ -234,14 +248,14 @@ public class PostService {
 
         //JPA 쿼리 매핑 - DTO에 매핑
         JpaResultMapper result = new JpaResultMapper();
-        List<PostPreviewDto> postLikesList = result.list(query, PostPreviewDto.class);
+        List<PostDetailDto> postLikesList = result.list(query, PostDetailDto.class);
 
         int start = (int) pageable.getOffset();
         int end = (start + pageable.getPageSize()) > postLikesList.size() ? postLikesList.size() : (start + pageable.getPageSize());
 
-        if(start > postLikesList.size()) return new PageImpl<PostPreviewDto>(postLikesList.subList(0, 0), pageable, 0);
+        if(start > postLikesList.size()) return new PageImpl<PostDetailDto>(postLikesList.subList(0, 0), pageable, 0);
 
-        Page<PostPreviewDto> postLikesPage = new PageImpl<>(postLikesList.subList(start, end), pageable, postLikesList.size());
+        Page<PostDetailDto> postLikesPage = new PageImpl<>(postLikesList.subList(start, end), pageable, postLikesList.size());
         return postLikesPage;
     }
 
