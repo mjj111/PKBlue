@@ -153,7 +153,7 @@ public class PostService {
             post.updateLikesCount(post.getLikesList().size());
             post.updateCommentCount(post.getCommentList().size());}
         );
-        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정함 추후 수정예정
+        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정, 추후 수정예정
         return postDtoPage;
     }
 
@@ -166,7 +166,7 @@ public class PostService {
             post.updateLikesCount(post.getLikesList().size());
             post.updateCommentCount(post.getCommentList().size());}
         );
-        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정함 추후 수정예정
+        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정, 추후 수정예정
         return postDtoPage;
     }
 
