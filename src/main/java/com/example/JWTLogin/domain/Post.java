@@ -57,8 +57,6 @@ public class Post {
     @Transient
     private long commentCount;
 
-    @Transient
-    private boolean likesState;
 
     private LocalDateTime createDate;
 
@@ -81,19 +79,15 @@ public class Post {
         this.postFiles = fileList;
     }
 
-//    public void update(String tag, String text) {
-//        this.tag = tag;
-//        this.text = text;
-//    }
+    public void update(String tag, String text) {
+        this.tag = tag;
+        this.text = text;
+    }
 
     public void updateLikesCount(long likesCount) {
         this.likesCount = likesCount;
     }
 
     public void updateCommentCount(long commentCount){this.commentCount = commentCount;}
-
-    public void updateLikesState(boolean likesState) {
-        this.likesState = likesState;
-    }
 
 }

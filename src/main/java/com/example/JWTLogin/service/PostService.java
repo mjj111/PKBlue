@@ -1,16 +1,12 @@
 package com.example.JWTLogin.service;
 
 import com.example.JWTLogin.config.FileUtilities;
-import com.example.JWTLogin.domain.Member;
-import com.example.JWTLogin.domain.Post;
-import com.example.JWTLogin.domain.PostFile;
+import com.example.JWTLogin.domain.*;
 import com.example.JWTLogin.handler.CustomApiException;
-import com.example.JWTLogin.handler.CustomValidationException;
 import com.example.JWTLogin.repository.*;
 import com.example.JWTLogin.web.dto.post.*;
 import lombok.RequiredArgsConstructor;
 import org.qlrm.mapper.JpaResultMapper;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -20,12 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
@@ -39,6 +31,7 @@ public class PostService {
     private final ScrapRepository scrapRepository;
     private final EntityManager em;
     private final PostFileRepository postFileRepository;
+    private final FollowRepository followRepository;
 
 
     //포스트 등록
@@ -65,6 +58,7 @@ public class PostService {
         }
 
         return haveSavedPost.getId();
+
     }
 /**
  *
@@ -74,68 +68,61 @@ public class PostService {
  */
     /
     // 포스트 상세 보기
-    @Transactional
-    public PostDto getPostDto(long postId, String email) {
+    public PostDetailDto getMainFeed(long postId, String email) {
+        Post wantedPost = postRepository.findById(postId).get();
+        PostDetailDto postDetailDto = new PostDetailDto();
+
+        postDetailDto.setPostId(postId);
+        postDetailDto.setText(wantedPost.getText());
+        postDetailDto.setTag(wantedPost.getTag());
+        postDetailDto.setCommentCount(wantedPost.getCommentCount());
+        postDetailDto.setLikesCount(wantedPost.getLikesCount());
+        postDetailDto.setCreateDate(wantedPost.getCreateDate());
+        postDetailDto.setOnlyFriend(wantedPost.isOnlyFriend());
+        postDetailDto.setCommentList(wantedPost.getCommentList());
+
+
         Member loginMember = memberRepository.findByEmail(email);
+        List<Likes> LikeList = wantedPost.getLikesList();
 
-        PostDto postDto = new PostDto();
-        postDto.setLoaderId(loginMember.getId());
-        postDto.setLoaderNickname(loginMember.getNickname());
-        postDto.setLoaderProfileImg(loginMember.getProfileImgUrl()); // 수정 바람
+        postDetailDto.setLikesState(false);
 
+        for(Likes like : LikeList){
+            if(like.getMember().getId() == loginMember.getId()){
+                postDetailDto.setLikesState(true);
+            }
+        }
 
+        postDetailDto.setLoaderId(wantedPost.getMember().getId());
+        postDetailDto.setLoaderNickname(wantedPost.getMember().getNickname());
+        postDetailDto.setLoaderProfileImg(wantedPost.getMember().getProfileImgUrl());
 
-        Post post = postRepository.findById(postId).get();
-        postInfoDto.setTag(post.getTag());
-        postInfoDto.setText(post.getText());
-        postInfoDto.setPostImgUrl(post.getPostImgUrl());
-        postInfoDto.setCreatedate(post.getCreateDate());
+        // 맞팔용 게시글일 경우 맞팔이 아니면 조회하지 못한다.
+        if(wantedPost.isOnlyFriend()){
+            if(followRepository.findFollowByFromMemberIdAndToMemberId(wantedPost.getMember().getId(),loginMember.getId()) == null){
+                throw new CustomApiException("친한 친구용 게시글입니다, 접근 권한이 없습니다.");
+            }
+        }
 
-        //포스트 정보 요청시 포스트 엔티티의 likesCount, likesState, CommentList를 설정해준다.
-        postDto.setLikesCount(post.getLikesList().size());
-        post.getLikesList().forEach(likes -> {
-            if(likes.getMember().getId() == loginMember.getId()) postDto.setLikesState(true);
-        });
-//        postDto.setCommentCount(post.getCommentList());
-
-        //포스트 주인의 정보를 가져온다.
-        Member member = memberRepository.findById(post.getMember().getId()).get();
-
-        postInfoDto.setUploaderNickname(member.getNickname());
-        if(loginMember.getId() == post.getMember().getId()) postInfoDto.setUploader(true);
-        else postInfoDto.setUploader(false);
-
-        return postInfoDto;
+        return postDetailDto;
     }
 
 
-    // 포스트 상세 조회
-    @Transactional
-    public PostDto getPostDto(long postId) {
-        //예외 처리 필요 -> post의 작성자가 아닌 사람이 해당 페이지에 접근하여 수정하려고 한다면??
-        Post post = postRepository.findById(postId).get();
-
-        PostDto postDto = PostDto.builder()
-                .id(postId)
-                .tag(post.getTag())
-                .text(post.getText())
-                .postImgUrl(post.getPostImgUrl())
-                .build();
-
-        return postDto;
-    }
-
-    //포스트 업데이트
+    // 포스트 업데이트 태그와 내용 수정 가능
     @Transactional
     public void update(PostUpdateDto postUpdateDto) {
-        Post post = postRepository.findById(postUpdateDto.getId()).get();
+        Post post = postRepository.findById(postUpdateDto.getPostId()).get();
         post.update(postUpdateDto.getTag(), postUpdateDto.getText());
     }
 
     // 포스트 지우기
     @Transactional
-    public void delete(long postId) {
+    public void delete(long postId, String email) {
+        Member loginMember = memberRepository.findByEmail(email);
         Post post = postRepository.findById(postId).get();
+        if(loginMember.getId() != post.getMember().getId()){
+            throw new CustomApiException("게시글 생성자 본인이 아닙니다.");
+        }
 
         //관련된 likes의 정보 먼저 삭제해 준다.
         likesRepository.deleteLikesByPost(post);
@@ -147,42 +134,40 @@ public class PostService {
         commentRepository.deleteCommentsByPost(post);
 
         //관련 파일 저장 위치에서 삭제해 준다.
-        File file = new File(uploadUrl + post.getPostImgUrl());
-        file.delete();
+        List<Long> postFileIdList = new ArrayList<Long>();
+
+        for(PostFile postFile : post.getPostFiles()){
+            postFileIdList.add(postFile.getId());
+        }
+        postFileRepository.deleteByPostFileIdList(postFileIdList);
 
         postRepository.deleteById(postId);
     }
 
     // 메인스토리 (짝팔로우) 목록 조회
     @Transactional
-    public Page<Post> getMainPost(String email, Pageable pageable) {
+    public Page<PostDto> getMainFeed(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         Page<Post> postList = postRepository.mainStory(loginMemeber.getId(), pageable);
-
         postList.forEach(post -> {
             post.updateLikesCount(post.getLikesList().size());
-            post.getLikesList().forEach(likes -> {
-                if(likes.getMember().getId() == loginMemeber.getId()) post.updateLikesState(true);
-            });
-        });
-
-        return postList;
+            post.updateCommentCount(post.getCommentList().size());}
+        );
+        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정함 추후 수정예정
+        return postDtoPage;
     }
 
-    // 서브스토리 포스트 목록 조회
+    // 서브스토리(맞팔로우) 포스트 목록 조회
     @Transactional
-    public Page<Post> getSubPost(String email, Pageable pageable) {
+    public Page<PostDto> getSubFeed(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         Page<Post> postList = postRepository.subStory(loginMemeber.getId(), pageable);
-
         postList.forEach(post -> {
             post.updateLikesCount(post.getLikesList().size());
-            post.getLikesList().forEach(likes -> {
-                if(likes.getMember().getId() == loginMemeber.getId()) post.updateLikesState(true);
-            });
-        });
-
-        return postList;
+            post.updateCommentCount(post.getCommentList().size());}
+        );
+        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정함 추후 수정예정
+        return postDtoPage;
     }
 
     // 태그 검색 목록 조회

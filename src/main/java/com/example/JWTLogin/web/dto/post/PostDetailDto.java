@@ -14,16 +14,15 @@ import java.util.List;
 @Getter
 @Data
 public class PostDetailDto {
-    private long id;
+    private long postId; // 포스트 ID
     private long loaderId; // 생성자 ID
     private String loaderProfileImg; // 생성자 프로필 이미지
     private String loaderNickname; // 생성자 닉네임
     private List<String> postFileList; // 포스트 동영상,이미지 url
     private String text;
     private String tag;
-    private int commentCount; // 댓글 수
-    private int likesCount; // 좋아요 수
-    private LocalDateTime elapseTime; // 생성 경과시간
+    private long commentCount; // 댓글 수
+    private long likesCount; // 좋아요 수
     private LocalDateTime createDate; // 생성일
     private boolean likesState; // 현재 좋아요 눌렀는가
     private boolean onlyFriend; // 맞팔,짝팔
