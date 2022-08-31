@@ -1,4 +1,4 @@
-package com.example.JWTLogin.web.dto;
+package com.example.JWTLogin.web.dto.comment;
 
 import lombok.Data;
 

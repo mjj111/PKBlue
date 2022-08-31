@@ -21,6 +21,7 @@ public class FollowService {
     private final EntityManager em;
     private final FollowRepository followRepository;
 
+
     //팔로우
     @Transactional
     public void follow(long fromMemberId, long toMemberId){
@@ -38,6 +39,7 @@ public class FollowService {
         }
     }
 
+
     //언팔로우
     @Transactional
     public void unFollow(long fromMemberId, long toMemberId) {
@@ -47,6 +49,7 @@ public class FollowService {
         }
         followRepository.unFollow(fromMemberId, toMemberId);
     }
+
 
     // 팔로워 조회
     public List<FollowDto> getFollower(long profileId, long loginId) {

@@ -20,7 +20,7 @@ public class CommentService {
     private final PostRepository postRepository;
 
     @Transactional
-    public Comment addComment (String text, long postId, String email) {
+    public void addComment (String text, long postId, String email) {
         Post post = postRepository.findById(postId).get();
         Member loginMember = memberRepository.findByEmail(email);
         Comment comment = Comment.builder()
@@ -28,7 +28,8 @@ public class CommentService {
                 .post(post)
                 .member(loginMember)
                 .build();
-        return commentRepository.save(comment);
+        commentRepository.save(comment);
+        post.updateCommentCount(post.getCommentList().size());
     }
 
     @Transactional
