@@ -1,6 +1,7 @@
 package com.example.JWTLogin.service;
 
 import com.example.JWTLogin.domain.Member;
+import com.example.JWTLogin.handler.CustomApiException;
 import com.example.JWTLogin.handler.CustomValidationException;
 import com.example.JWTLogin.repository.FollowRepository;
 import com.example.JWTLogin.repository.MemberRepository;
@@ -19,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +30,7 @@ public class MemberService {
     public final MemberRepository memberRepository;
     public final PasswordEncoder passwordEncoder;
     public final FollowRepository followRepository;
+    public final MailService mailService;
 
 
     // 회원가입
@@ -36,15 +39,20 @@ public class MemberService {
 
         duplicateEmailCheck(signupDto.getEmail());
         duplicateNickname(signupDto.getNickname());
-        Member saveMember = Member.builder()
-                .email(signupDto.getEmail())
-                .password(passwordEncoder.encode(signupDto.getPassword()))
-                .nickname(signupDto.getNickname())
-                .introduce(null)
-                .profileImgUrl(null)
-                .roles(Collections.singletonList("ROLE_USER")) // 최초 가입시 USER 로 설정
-                .build();
-        memberRepository.save(saveMember);
+        if(mailService.haveCheckEmail(signupDto.getEmail())){
+            Member saveMember = Member.builder()
+                    .email(signupDto.getEmail())
+                    .password(passwordEncoder.encode(signupDto.getPassword()))
+                    .nickname(signupDto.getNickname())
+                    .introduce(null)
+                    .profileImgUrl(null)
+                    .roles(Collections.singletonList("ROLE_USER")) // 최초 가입시 USER 로 설정
+                    .build();
+            memberRepository.save(saveMember);
+        }
+        else{
+            throw new CustomApiException("이메일 인증이 필요합니다.");
+        }
     }
 
 
@@ -133,4 +141,45 @@ public class MemberService {
         String changePSW = passwordEncoder.encode(password);
         loginMember.changePSW(changePSW);
     }
+
+    // 비밀번호 랜덤변경 + 6자리 난수
+    @Transactional
+    public void changeRandomPassword(String email){
+        Member loginMember = memberRepository.findByEmail(email);
+        Random random = new Random();
+        int createNum = 0;
+        String ranNum ="";
+        int letter = 6;
+        String password = "";
+
+        for(int i = 0; i< letter; i++){
+            createNum = random.nextInt(9);
+            ranNum = Integer.toString(createNum);
+            password += ranNum;
+        }
+
+        String changePSW = passwordEncoder.encode(password);
+        loginMember.changePSW(changePSW);
+        try{
+            mailService.createMessage(email,password); // 이메일 전송함.
+        } catch (Exception e){
+            throw new CustomApiException("메일 전송에 실패하였습니다.");
+        }
+    }
+
+    // 비밀번호 찾기 메일 전송
+    @Transactional
+    public void searchPasswordSMTP(String email){
+        if(memberRepository.findByEmail(email)!=null){
+            try{
+                mailService.createMessage(email); // 이메일 전송함.
+            } catch (Exception e){
+                throw new CustomApiException("이메일 인증에 실패하였습니다.");
+            }
+        }
+        else{
+            throw new CustomApiException("등록되지 않은 회원입니다. 다시 확인 부탁드립니다.");
+        }
+    }
+
 }

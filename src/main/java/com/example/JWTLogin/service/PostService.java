@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Query;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +26,6 @@ public class PostService {
     private final LikesRepository likesRepository;
     private final CommentRepository commentRepository;
     private final ScrapRepository scrapRepository;
-    private final EntityManager em;
     private final PostFileRepository postFileRepository;
     private final FollowRepository followRepository;
 
@@ -76,6 +73,7 @@ public class PostService {
         postDetailDto.setCreateDate(wantedPost.getCreateDate());
         postDetailDto.setOnlyFriend(wantedPost.isOnlyFriend());
 
+
         // comment 정보 추가
         List<CommentDto> commentDtoList = new CommentDto().toDtoList(wantedPost.getCommentList());
         postDetailDto.setCommentDtoList(commentDtoList);
@@ -110,8 +108,12 @@ public class PostService {
 
     // 포스트 업데이트 태그와 내용 수정 가능
     @Transactional
-    public void update(PostUpdateDto postUpdateDto) {
+    public void update(PostUpdateDto postUpdateDto,String email) {
+        Member loginMember = memberRepository.findByEmail(email);
         Post post = postRepository.findById(postUpdateDto.getPostId()).get();
+        if(post.getMember().getId() != loginMember.getId()){
+            throw new CustomApiException("본인 게시글만 수정할 수 있습니다.");
+        }
         post.update(postUpdateDto.getTag(), postUpdateDto.getText());
     }
 
@@ -161,6 +163,15 @@ public class PostService {
     public Page<PostDto> getSubFeed(String email, Pageable pageable) {
         Member loginMemeber = memberRepository.findByEmail(email);
         Page<Post> postList = postRepository.subStory(loginMemeber.getId(), pageable);
+        Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정, 추후 수정예정
+        return postDtoPage;
+    }
+
+    // 본인 게시 피드 포스트 목록 조회
+    @Transactional
+    public Page<PostDto> getSelfFeed(String email, Pageable pageable) {
+        Member loginMemeber = memberRepository.findByEmail(email);
+        Page<Post> postList = postRepository.selfFeed(loginMemeber.getId(), pageable);
         Page<PostDto> postDtoPage = new PostDto().toDtoList(postList); // likeState false 고정, 추후 수정예정
         return postDtoPage;
     }

@@ -54,6 +54,31 @@ public class MailService {
         emailSender.send(message);
     }
 
+    @Transactional
+    public void createMessage(String to,String password)throws Exception{
+        MimeMessage  message = emailSender.createMimeMessage();
+        message.addRecipients(RecipientType.TO, to);//보내는 대상
+        message.setSubject("백경 변경되 비밀번호가 도착했습니다.");//제목
+
+        String msgg="";
+        msgg+= "<div style='margin:100px;'>";
+        msgg+= "<h1> 안녕하세요  국립부경대학교 커뮤니티 백경입니다! </h1>";
+        msgg+= "<br>";
+        msgg+= "<p>변경된 비밀번호를 사용하여 로그인해 주시길 바랍니다.<p>";
+        msgg+= "<br>";
+        msgg+= "<p>백경에 접속을 진심으로 감사드리며 쾌적한 커뮤니티가 되도록 함께 노력합시다!<p>";
+        msgg+= "<br>";
+        msgg+= "<div align='center' style='border:1px solid black; font-family:verdana';>";
+        msgg+= "<h3 style='color:blue;'>변경된 비밀번호입니다.</h3>";
+        msgg+= "<div style='font-size:130%'>";
+        msgg+= "비밀번호 : <strong>";
+        msgg+= password+"</strong><div><br/> ";
+        msgg+= "</div>";
+        message.setText(msgg, "utf-8", "html");//내용
+        message.setFrom(new InternetAddress("skatks1016@naver.com","김명준"));//보내는 사람
+        emailSender.send(message);
+    }
+
     //		인증코드 만들기
     public static String createKey() {
         StringBuffer key = new StringBuffer();

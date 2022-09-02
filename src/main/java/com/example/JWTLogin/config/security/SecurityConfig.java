@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @RequiredArgsConstructor
 @EnableWebSecurity
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -47,20 +47,3 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         // JwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 전에 넣는다
     }
 }
-// @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//
-//        http.authorizeRequests().antMatchers("/login").permitAll()
-//                .antMatchers("/users/**", "/settings/**").hasAuthority("USER")
-//                .hasAnyAuthority("Admin")
-//                .anyRequest().authenticated()
-//
-//        http.headers().frameOptions().sameOrigin();
-//
-//        return http.build();
-//    }
-//
-//    @Bean
-//    public WebSecurityCustomizer webSecurityCustomizer() {
-//        return (web) -> web.ignoring().antMatchers("/images/**", "/js/**", "/webjars/**");
-//    }

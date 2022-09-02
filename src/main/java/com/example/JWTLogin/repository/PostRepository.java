@@ -27,6 +27,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query(value =
             "SELECT * " +
+                    "FROM post " +
+                    "WHERE member_id = :fromMemberId" +
+                    "ORDER BY id DESC", nativeQuery = true)
+    Page<Post> selfFeed(long fromMemberId, Pageable pageable);
+
+    @Query(value =
+            "SELECT * " +
             "FROM post " +
             "WHERE tag LIKE :tag " +
             "OR tag LIKE CONCAT('%,',:tag,',%') " +
