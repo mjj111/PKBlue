@@ -51,7 +51,7 @@ public class MemberService {
             memberRepository.save(saveMember);
         }
         else{
-            throw new CustomApiException("이메일 인증이 필요합니다.");
+            throw new CustomValidationException("이메일 인증이 필요합니다.");
         }
     }
 
@@ -61,6 +61,7 @@ public class MemberService {
     private String uploadFolder;
     @Transactional
     public void update(MemberUpdateDto memberUpdateDto, MultipartFile multipartFile, String email) {
+        duplicateNickname(memberUpdateDto.getNickname());
         Member loginMember = memberRepository.findByEmail(email);
 
         if(!multipartFile.isEmpty()) { //파일이 업로드 되었는지 확인
@@ -78,6 +79,7 @@ public class MemberService {
             loginMember.updateProfileImgUrl(imageFileName);
         }
 
+
         loginMember.updateProfile(
                 memberUpdateDto.getNickname(),
                 memberUpdateDto.getIntroduce()
@@ -86,9 +88,9 @@ public class MemberService {
 
     // 회원 프로필 조회
     public MemberProfileDto getMemberProfileDto(long toId, String loginMemberEmail) {
+        Member toMember = memberRepository.findById(toId).orElseThrow(() -> { return new CustomValidationException("찾을 수 없는 유저입니다.");});
         MemberProfileDto memberProfileDto = new MemberProfileDto();
 
-        Member toMember = memberRepository.findById(toId).orElseThrow(() -> { return new CustomValidationException("찾을 수 없는 유저입니다.");});
         memberProfileDto.setProfileImgUrl(toMember.getProfileImgUrl());
         memberProfileDto.setNickname(toMember.getNickname());
         memberProfileDto.setIntroduce(toMember.getIntroduce());
@@ -172,13 +174,13 @@ public class MemberService {
     public void searchPasswordSMTP(String email){
         if(memberRepository.findByEmail(email)!=null){
             try{
-                mailService.createMessage(email); // 이메일 전송함.
+                mailService.createMessage(email); // 이메일 전송.
             } catch (Exception e){
-                throw new CustomApiException("이메일 인증에 실패하였습니다.");
+                throw new CustomApiException("이메일 전송에 실패하였습니다.");
             }
         }
         else{
-            throw new CustomApiException("등록되지 않은 회원입니다. 다시 확인 부탁드립니다.");
+            throw new CustomValidationException("등록되지 않은 회원입니다. 다시 확인 부탁드립니다.");
         }
     }
 

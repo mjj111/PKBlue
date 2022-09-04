@@ -32,8 +32,11 @@ public class CommentService {
         post.updateCommentCount(post.getCommentList().size());
     }
 
+
     @Transactional
     public void deleteComment(long id) {
         commentRepository.deleteById(id);
     }
+
+
 }

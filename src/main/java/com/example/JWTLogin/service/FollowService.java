@@ -27,12 +27,13 @@ public class FollowService {
     public void follow(long fromMemberId, long toMemberId){
         if(followRepository.findFollowByFromMemberIdAndToMemberId(fromMemberId, toMemberId) != null) throw new CustomApiException("이미 팔로우 하였습니다.");
 
+
         // 맞팔
         else if(followRepository.findFollowByFromMemberIdAndToMemberId(toMemberId, fromMemberId) != null){
             followRepository.follow(fromMemberId, toMemberId,true);
-            Follow refollow = followRepository.findFollowByFromMemberIdAndToMemberId(fromMemberId, toMemberId);
-            refollow.setF4f(true);
         }
+
+
         // 짝팔
         else {
             followRepository.follow(fromMemberId, toMemberId, false);
@@ -80,6 +81,7 @@ public class FollowService {
         sb.append("if ((?=m.id), TRUE, FALSE) AS loginUser ");
         sb.append("FROM member m, follow f ");
         sb.append("WHERE m.id = f.to_member_id AND f.from_member_id = ?");
+
 
         // 쿼리 완성
         Query query = em.createNativeQuery(sb.toString())

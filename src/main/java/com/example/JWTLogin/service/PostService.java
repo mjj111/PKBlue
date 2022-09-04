@@ -3,6 +3,7 @@ package com.example.JWTLogin.service;
 import com.example.JWTLogin.config.FileUtilities;
 import com.example.JWTLogin.domain.*;
 import com.example.JWTLogin.handler.CustomApiException;
+import com.example.JWTLogin.handler.CustomValidationException;
 import com.example.JWTLogin.repository.*;
 import com.example.JWTLogin.web.dto.comment.CommentDto;
 import com.example.JWTLogin.web.dto.post.*;
@@ -15,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RequiredArgsConstructor
 @Service
@@ -60,7 +62,7 @@ public class PostService {
 
     // 포스트 상세 보기
     public PostDetailDto getMainFeed(long postId, String email) {
-        Post wantedPost = postRepository.findById(postId).get();
+        Post wantedPost = postRepository.findById(postId).orElseThrow(() -> new CustomValidationException("존재하지 않은 포스트 입니다."));
         PostDetailDto postDetailDto = new PostDetailDto();
 
 
@@ -110,7 +112,7 @@ public class PostService {
     @Transactional
     public void update(PostUpdateDto postUpdateDto,String email) {
         Member loginMember = memberRepository.findByEmail(email);
-        Post post = postRepository.findById(postUpdateDto.getPostId()).get();
+        Post post = postRepository.findById(postUpdateDto.getPostId()).orElseThrow(() -> new CustomValidationException("존재하지 않은 포스트 입니다."));
         if(post.getMember().getId() != loginMember.getId()){
             throw new CustomApiException("본인 게시글만 수정할 수 있습니다.");
         }
@@ -122,7 +124,7 @@ public class PostService {
     @Transactional
     public void delete(long postId, String email) {
         Member loginMember = memberRepository.findByEmail(email);
-        Post post = postRepository.findById(postId).get();
+        Post post = postRepository.findById(postId).orElseThrow(() -> new CustomValidationException("존재하지 않은 포스트 입니다."));
         if(loginMember.getId() != post.getMember().getId()){
             throw new CustomApiException("게시글 생성자 본인이 아닙니다.");
         }
@@ -137,7 +139,7 @@ public class PostService {
         commentRepository.deleteCommentsByPost(post);
 
         //관련 파일 저장 위치에서 삭제해 준다.
-        List<Long> postFileIdList = new ArrayList<Long>();
+        List<Long> postFileIdList = new ArrayList<>();
 
         for(PostFile postFile : post.getPostFiles()){
             postFileIdList.add(postFile.getId());

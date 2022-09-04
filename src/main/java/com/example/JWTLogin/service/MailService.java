@@ -27,7 +27,7 @@ public class MailService {
         MimeMessage  message = emailSender.createMimeMessage();
 
         message.addRecipients(RecipientType.TO, to);//보내는 대상
-        message.setSubject("백경 회원가입 인증번호가 도착했습니다.");//제목
+        message.setSubject("<백경> 회원가입 인증번호가 도착했습니다.");//제목
 
         String msgg="";
         msgg+= "<div style='margin:100px;'>";
@@ -58,7 +58,7 @@ public class MailService {
     public void createMessage(String to,String password)throws Exception{
         MimeMessage  message = emailSender.createMimeMessage();
         message.addRecipients(RecipientType.TO, to);//보내는 대상
-        message.setSubject("백경 변경되 비밀번호가 도착했습니다.");//제목
+        message.setSubject("<백경> 변경된 비밀번호가 도착했습니다.");//제목
 
         String msgg="";
         msgg+= "<div style='margin:100px;'>";
@@ -115,6 +115,9 @@ public class MailService {
         }
         return false;
     }
+
+    // createMessage -> checkEmail -> haveCheckEmail
+    // 인증 메시지를 보내고, 이메일 인증을 한 뒤, 회원가입 시도시 인증된 이메일인지 확인 후 회원가입 정상 절차대로 작동한다.
 
     public boolean haveCheckEmail(String email){
         return mailCodeRepository.findByEmail(email).isState();

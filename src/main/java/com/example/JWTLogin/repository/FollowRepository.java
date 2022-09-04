@@ -16,7 +16,7 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     int findFollowingCountById(long profileId);
 
     @Modifying
-    @Query(value = "INSERT INTO follow(from_member_id, to_member_id,f4f) VALUES(:fromId, :toId)", nativeQuery = true)
+    @Query(value = "INSERT INTO follow(from_member_id, to_member_id,f4f) VALUES(:fromId, :toId,:f4f)", nativeQuery = true)
     void follow(long fromId, long toId,boolean f4f);
 
     @Modifying
